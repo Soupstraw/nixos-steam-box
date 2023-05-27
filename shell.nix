@@ -1,14 +1,10 @@
-let
-  nixpkgs-src = (import ./nixpkgs-src.nix).stable;
-  pkgs = import nixpkgs-src {};
-in
-pkgs.mkShell {
+with import <nixpkgs> {};
+mkShell {
   buildInputs = [
-    pkgs.nixops
-    pkgs.nix
+    nixops
+    nix
   ];
   shellHook = ''
-    export NIX_PATH="nixpkgs=${nixpkgs-src}:."
     export SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt
   '';
 }

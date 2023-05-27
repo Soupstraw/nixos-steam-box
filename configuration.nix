@@ -1,9 +1,9 @@
 { config, pkgs, ... }:
 let
-  unstable = import (import ./nixpkgs-src.nix).unstable { config = {allowUnfree = true; }; };
+  #unstable = import (import ./nixpkgs-src.nix).stable { config = {allowUnfree = true; }; };
   #my_steam = (pkgs.steam.override { nativeOnly = true; });
-  my_steam = unstable.steam;
-  steam_autostart = (pkgs.makeAutostartItem { name = "steam"; package = my_steam; });
+  #my_steam = unstable.steam;
+  steam_autostart = (pkgs.makeAutostartItem { name = "steam"; package = pkgs.steam; });
 in
 {
   imports =
@@ -17,8 +17,9 @@ in
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader.efi.efiSysMountPoint = "/boot/efi";
 
-  networking.hostName = "gamer"; # Define your hostname.
+  networking.hostName = "telku"; # Define your hostname.
   networking.networkmanager.enable = true;
 
   # open ports for steam stream and some games
@@ -29,7 +30,7 @@ in
   environment.systemPackages = with pkgs; [
     wget vim htop
     # GAMING
-    my_steam
+    steam
     steam_autostart
     steam-run
   ];
@@ -37,7 +38,7 @@ in
   # enable ssh
   services.openssh = {
     enable = true;
-    passwordAuthentication = false;
+    settings.PasswordAuthentication = false;
   };
 
   # Xbox controller
@@ -56,7 +57,6 @@ in
   sound.enable = true;
   hardware.pulseaudio.enable = true;
   hardware.pulseaudio.package = pkgs.pulseaudioFull;
-  hardware.pulseaudio.extraModules = [ pkgs.pulseaudio-modules-bt ];
 
   # Enable the X11 windowing system.
   services.xserver.enable = true;
@@ -69,7 +69,7 @@ in
     enable = true;
     autoLogin = {
       enable = true;
-      user = "gamer";
+      user = "telku";
     };
   };
   services.xserver.desktopManager.plasma5.enable = true;
@@ -78,14 +78,11 @@ in
   users = {
     mutableUsers = false;
     users = {
-      gamer = {
-        password = "";
+      telku = {
+        password = "telku";
         isNormalUser = true;
         extraGroups = [ "wheel" ]; # Enables ‘sudo’ for the user.
       };
-      root.openssh.authorizedKeys.keys = [
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDuhpzDHBPvn8nv8RH1MRomDOaXyP4GziQm7r3MZ1Syk" 
-      ];
     };
   };
 
@@ -93,7 +90,7 @@ in
   nix.maxJobs = 20;
 
   # timezone
-  time.timeZone = "Asia/Bangkok";
+  time.timeZone = "Europe/Tallinn";
 
   systemd.extraConfig = "DefaultLimitNOFILE=1048576";
   boot.kernelPackages = pkgs.linuxPackages_latest;
