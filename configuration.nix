@@ -3,7 +3,7 @@ let
   #unstable = import (import ./nixpkgs-src.nix).stable { config = {allowUnfree = true; }; };
   #my_steam = (pkgs.steam.override { nativeOnly = true; });
   #my_steam = unstable.steam;
-  steam_autostart = (pkgs.makeAutostartItem { name = "steam"; package = pkgs.steam; });
+  #steam_autostart = (pkgs.makeAutostartItem { name = "steam"; package = pkgs.steam; });
 in
 {
   imports =
@@ -27,18 +27,22 @@ in
   networking.firewall.allowedUDPPorts = with pkgs.lib; [ 4380 27036 ] ++ (range 27000 27031);
   networking.firewall.allowPing = true;
   
+  nixpkgs.config.kodi.enableAdvancedLauncher = true;
   environment.systemPackages = with pkgs; [
     wget vim htop
     # GAMING
     steam
-    steam_autostart
+    #steam_autostart
     steam-run
+    wmctrl
+    xdotool
   ];
 
   # enable ssh
   services.openssh = {
     enable = true;
     settings.PasswordAuthentication = false;
+    #settings.PermitRootLogin = "yes";
   };
 
   # Xbox controller
@@ -49,8 +53,12 @@ in
   hardware.opengl.extraPackages32 = with pkgs.pkgsi686Linux; [ libva ];
   hardware.pulseaudio.support32Bit = true;
 
+  hardware.steam-hardware.enable = true;
   # Bluetooth
-  hardware.bluetooth.enable = true;
+  hardware.bluetooth = {
+    enable = true;
+    package = pkgs.bluezFull;
+  };
   
 
   # Enable sound.
@@ -65,14 +73,60 @@ in
   services.xserver.videoDrivers = [ "nvidia" ];
 
   # Enable the KDE Desktop Environment.
-  services.xserver.displayManager.sddm = {
-    enable = true;
-    autoLogin = {
+  #services.xserver.displayManager.sddm = {
+  #  enable = true;
+  #  autoLogin = {
+  #    enable = true;
+  #    user = "telku";
+  #  };
+  #};
+  #services.xserver.desktopManager.plasma5.enable = true;
+  services.xserver = {
+    displayManager.lightdm.enable = true;
+    displayManager.autoLogin = {
       enable = true;
       user = "telku";
     };
+    displayManager.defaultSession = "none+openbox";
+    windowManager.openbox.enable = true;
   };
-  services.xserver.desktopManager.plasma5.enable = true;
+
+  nixpkgs.overlays = [
+    (self: super: {
+    })
+  ];
+
+  systemd.user.services.kodi = {
+    description = "Kodi as systemd service";
+    wantedBy = [ "graphical-session.target" ];
+    partOf = [ "graphical-session.target" ];
+
+    serviceConfig =
+      let
+        package = pkgs.kodi.withPackages (p: with p; [
+          a4ksubtitles
+          #jellyfin
+          keymap
+          pvr-iptvsimple
+          vfs-libarchive
+          vfs-sftp
+
+          iagl
+          steam-library
+          steam-launcher
+          joystick
+          libretro-genplus
+          libretro-mgba
+          libretro-snes9x
+        ]);
+      in
+      {
+        ExecStart = "${package}/bin/kodi";
+        Restart = "on-failure";
+      };
+  };
+
+  nixpkgs.config.customServices.steamcontroller.enable = true;
 
   # Users
   users = {
@@ -81,10 +135,21 @@ in
       telku = {
         password = "telku";
         isNormalUser = true;
-        extraGroups = [ "wheel" ]; # Enables ‘sudo’ for the user.
+        extraGroups = [ "wheel" "dialout" ];
       };
     };
   };
+
+  services.udev.extraRules = ''
+      # Sony PlayStation DualShock 4; bluetooth; USB
+      KERNEL=="hidraw*", KERNELS=="*054C:05C4*", MODE="0660", TAG+="uaccess"
+      KERNEL=="hidraw*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="05c4", MODE="0660", TAG+="uaccess"
+      # Sony PlayStation DualShock 4 Slim; bluetooth; USB
+      KERNEL=="hidraw*", KERNELS=="*054C:09CC*", MODE="0660", TAG+="uaccess"
+      KERNEL=="hidraw*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="09cc", MODE="0660", TAG+="uaccess"
+      # Sony PlayStation DualShock 4 Wireless Adapter; USB
+      KERNEL=="hidraw*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0ba0", MODE="0660", TAG+="uaccess"
+  '';
 
   # In case nix builds are executed from that machine.
   nix.maxJobs = 20;
